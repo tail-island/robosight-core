@@ -247,7 +247,7 @@
             (if (and object other)
               (let [v0 (matrix/sub (:center other) (:center object))
                     v1 (matrix/sub (matrix/add (:center other) (:velocity other)) (matrix/add (:center object) (:velocity object)))]
-                (if-not (f= v0 v1)
+                (if-not (matrix/equals v0 v1 epsilon)
                   (->> (solve-quadratic-equation (matrix/length-squared (matrix/sub v1 v0))
                                                  (* (matrix/dot v0 (matrix/sub v1 v0)) 2)
                                                  (- (matrix/length-squared v0)
