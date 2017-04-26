@@ -4,39 +4,32 @@
             (clojure.math [combinatorics :as combinatorics]))
   (:import  (java.util.concurrent TimeoutException TimeUnit)))
 
-;; Compare floating points...
+;; Comparing floating points utilities...
 
-(def epsilon
+(def ^:private epsilon
   (Math/pow 10 -8))
 
 (defn f=
   [x y]
-  (or (<= (Math/abs (- x y)) epsilon)
-      (<= (Math/abs (- x y)) (* (max (Math/abs x) (Math/abs y)) epsilon))))
+  (let [d (Math/abs (- x y))]
+    (or (<= d epsilon) (<= d (* (max (Math/abs x) (Math/abs y)) epsilon)))))
 
-(defn fnot=
-  [x y]
-  (not (f= x y)))
+(def fnot=
+  (complement f=))
 
 (defn f<
   [x y]
-  (and (< x y)
-       (fnot= x y)))
-
-(defn f>
-  [x y]
-  (and (> x y)
-       (fnot= x y)))
+  (and (< x y) (fnot= x y)))
 
 (defn f<=
   [x y]
-  (or (< x y)
-      (f= x y)))
+  (or (< x y) (f= x y)))
 
-(defn f>=
-  [x y]
-  (or (> x y)
-      (f= x y)))
+(def f>
+  (complement f<))
+
+(def f>=
+  (complement f<=))
 
 ;; Constants.
 
@@ -171,9 +164,8 @@
 
 (defn- forward
   [state object-index impact-speed]
-  (update-in state [:objects object-index :velocity] #(matrix/add %
-                                                                  (matrix/mmul [(max (min impact-speed tank-impact-speed-max) tank-impact-speed-min) 0.0]
-                                                                               (rotation (get-in state [:objects object-index :direction]))))))
+  (update-in state [:objects object-index :velocity] #(matrix/add % (matrix/mmul [(max (min impact-speed tank-impact-speed-max) tank-impact-speed-min) 0.0]
+                                                                                 (rotation (get-in state [:objects object-index :direction]))))))
 
 (defn- turn-to
   [state object-index direction]
@@ -189,9 +181,8 @@
       (and (<= can-shoot-after 0) enough-space?) (-> (assoc-in  [:objects object-index :can-shoot-after] shoot-interval)
                                                      (update-in [:objects] #(conj % {:type     :shell
                                                                                      :center   shell-center
-                                                                                     :velocity (matrix/add velocity
-                                                                                                           (matrix/mmul [(max (min impact-speed shell-impact-speed-max) shell-impact-speed-min) 0.0]
-                                                                                                                        rotation))}))))))
+                                                                                     :velocity (matrix/add velocity (matrix/mmul [(max (min impact-speed shell-impact-speed-max) shell-impact-speed-min) 0.0]
+                                                                                                                                 rotation))}))))))
 
 (defn- action-fn
   [ins outs]
@@ -204,7 +195,7 @@
                        (try
                          (.get read-line
                                (if (<= (:turn state) 1)
-                                 10000
+                                 10000  ; 初回はいろいろ時間がかかると思うので（Clojureで作ったサンプルの起動がすげー遅かった……）、制限時間は10秒にします。
                                  thinking-time)
                                TimeUnit/MILLISECONDS)
                          (catch TimeoutException ex
@@ -380,7 +371,7 @@
                         %1))
        (reduce #(update-in %1 [:objects %2 :can-shoot-after] dec) state)))
 
-(defn- vanish-objects
+(defn- delete-vanished-objects
   [state]
   (update state :objects #(->> % (keep identity) (vec))))
 
@@ -390,4 +381,4 @@
 
 (defn tick-fn
   [ins outs]
-  (comp inc-turn vanish-objects cooling-turret uniform-linear-motion (action-fn ins outs)))
+  (comp inc-turn delete-vanished-objects cooling-turret uniform-linear-motion (action-fn ins outs)))
