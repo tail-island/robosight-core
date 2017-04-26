@@ -4,10 +4,41 @@
             (clojure.math [combinatorics :as combinatorics]))
   (:import  (java.util.concurrent TimeoutException TimeUnit)))
 
-;; Constants.
+;; Compare floating points...
 
 (def epsilon
   (Math/pow 10 -8))
+
+(defn f=
+  [x y]
+  (or (<= (Math/abs (- x y)) epsilon)
+      (<= (Math/abs (- x y)) (* (max (Math/abs x) (Math/abs y)) epsilon))))
+
+(defn fnot=
+  [x y]
+  (not (f= x y)))
+
+(defn f<
+  [x y]
+  (and (< x y)
+       (fnot= x y)))
+
+(defn f>
+  [x y]
+  (and (> x y)
+       (fnot= x y)))
+
+(defn f<=
+  [x y]
+  (or (< x y)
+      (f= x y)))
+
+(defn f>=
+  [x y]
+  (or (> x y)
+      (f= x y)))
+
+;; Constants.
 
 (def max-turn
   300)
@@ -107,8 +138,7 @@
 
 (defn broken?
   [object]
-  (or (<=            (:hp object) 0.0)
-      (matrix/equals (:hp object) 0.0 epsilon)))
+  (f<= (:hp object) 0.0))
 
 (defn tanks-coll
   [state]
@@ -130,9 +160,8 @@
       (apply < survivor-counts) 1
       :else                     (let [survivor-hp-totals (map #(reduce + (map :hp %)) survivors-coll)]
                                   (cond
-                                    (apply matrix/equals (conj (vec survivor-hp-totals) epsilon)) nil
-                                    (apply > survivor-hp-totals)                                  0
-                                    (apply < survivor-hp-totals)                                  1)))))
+                                    (apply f> survivor-hp-totals) 0
+                                    (apply f< survivor-hp-totals) 1)))))
 
 ;; Action.
 
@@ -155,10 +184,7 @@
   (let [[center velocity direction radius can-shoot-after] ((juxt :center :velocity :direction radius :can-shoot-after) (get-in state [:objects object-index]))
         rotation      (rotation direction)
         shell-center  (matrix/add center (matrix/mmul [(+ radius shell-radius 0.1) 0.0] rotation))
-        enough-space? (not (some #(if (tank? %)
-                                    (and (not (matrix/equals (+ (matrix/length (matrix/sub shell-center (:center %)))) (+ tank-radius shell-radius) epsilon))
-                                         (<                  (+ (matrix/length (matrix/sub shell-center (:center %)))) (+ tank-radius shell-radius))))
-                                 (:objects state)))]
+        enough-space? (every? #(f> (matrix/length (matrix/sub shell-center (:center %))) (+ tank-radius shell-radius)) (:objects state))]
     (cond-> state
       (and (<= can-shoot-after 0) enough-space?) (-> (assoc-in  [:objects object-index :can-shoot-after] shoot-interval)
                                                      (update-in [:objects] #(conj % {:type     :shell
@@ -214,26 +240,24 @@
                  (reduce #(apply assoc %1 %2) objects)))
           (solve-quadratic-equation [a b c]
             (let [d (- (Math/pow b 2) (* 4 a c))]
-              (if (>= d 0)  ; 虚数は無視で……。
+              (if (>= d 0)
                 (matrix/div (matrix/add (- b) ((juxt + -) (Math/sqrt d)))
                             (matrix/mul 2 a)))))
           (bounce-off-object-time' [object other]
             (if (and object other)
               (let [v0 (matrix/sub (:center other) (:center object))
                     v1 (matrix/sub (matrix/add (:center other) (:velocity other)) (matrix/add (:center object) (:velocity object)))]
-                (if-not (matrix/equals v0 v1 epsilon)
+                (if-not (f= v0 v1)
                   (->> (solve-quadratic-equation (matrix/length-squared (matrix/sub v1 v0))
                                                  (* (matrix/dot v0 (matrix/sub v1 v0)) 2)
                                                  (- (matrix/length-squared v0)
                                                     (Math/pow (+ (radius other) (radius object)) 2)))
-                       (filter #(and (not (matrix/equals 0.0 % epsilon))
-                                     (<                  0.0 %)))
+                       (filter #(f< 0.0 %))
                        (sort)
                        (first))))))
           (bounce-off-object-time [object other]
             (some->> (bounce-off-object-time' object other)
-                     (#(if (or (<=            (+ now-time %) 1.0)
-                               (matrix/equals (+ now-time %) 1.0 epsilon))
+                     (#(if (f<= (+ now-time %) 1.0)
                          %))))
           (bounce-off-object-times [objects]
             (->> objects
@@ -244,7 +268,7 @@
                            [bounce-time (map first index-and-object-pair)])))
                  (#(if-let [first-bounce-time (first (sort (map first %)))]
                      [first-bounce-time (keep (fn [[bounce-time index-pair]]
-                                                (if (matrix/equals bounce-time first-bounce-time epsilon)
+                                                (if (f= bounce-time first-bounce-time)
                                                   index-pair))
                                               %)]))))
           (bounce-off-object' [impacts objects index-pair]
@@ -283,10 +307,7 @@
                            (if (not= velocity 0.0)
                              (map #(/ (- (% (/ field-size 2)) center (% (radius object))) velocity) [+ -])))
                          field-size (:center object) (:velocity object))
-                 (filter #(and (and (not (matrix/equals 0.0 % epsilon))
-                                    (<                  0.0 %))
-                               (or  (<=            (+ now-time %) 1.0)
-                                    (matrix/equals (+ now-time %) 1.0 epsilon))))
+                 (filter #(and (f< 0.0 %) (f<= (+ now-time %) 1.0)))
                  (sort)
                  (first)))
           (bounce-off-wall-times [objects]
@@ -296,7 +317,7 @@
                                    [bounce-time index])))
                  (#(if-let [first-bounce-time (first (sort (map first %)))]
                      [first-bounce-time (keep (fn [[bounce-time index]]
-                                                (if (matrix/equals bounce-time first-bounce-time epsilon)
+                                                (if (f= bounce-time first-bounce-time)
                                                   index))
                                               %)]))))
           (bounce-off-wall [objects indice]
@@ -306,7 +327,7 @@
                            [index (if (tank? object)
                                     (assoc object :velocity (map (fn [field-size center velocity]
                                                                    (cond->> velocity
-                                                                     (some #(matrix/equals (- (% (/ field-size 2)) center (% (radius object))) 0.0 epsilon) [+ -]) (* (- coefficient-of-restitution))))
+                                                                     (some #(f= (- (% (/ field-size 2)) center (% (radius object))) 0.0) [+ -]) (* (- coefficient-of-restitution))))
                                                                  field-size (:center object) (:velocity object))))])))
                  (reduce #(apply assoc %1 %2) objects)))
           (damage [objects last-objects indice]  ; 同じタイミングで遠くで大事故が起きたときに影響を受けてしまいますけど、ごめんなさい、無視で。
@@ -317,7 +338,7 @@
                               damage-ratio)]
                 (reduce #(update-in %1 [%2 :hp] (fn [hp] (- hp damage))) objects indice))
               objects))
-          (force-inside-wall [objects]  ; 浮動小数点計算の誤差ですり抜けてしまうことがあるので、せめて、強制的に壁の中に戻します。
+          (force-inside-wall [objects]  ; 浮動小数点計算の誤差ですり抜ける可能性があるので、せめて、強制的に壁の中に戻しておきます。
             (->> objects
                  (keep-indexed (fn [index object]
                                  (if object
@@ -332,12 +353,12 @@
       (if-let [bounce-time (first (sort (keep identity [bounce-off-object-time bounce-off-wall-time])))]
         (recur (-> objects
                    (linear-motion bounce-time)
-                   (cond-> (and bounce-off-object-time (matrix/equals bounce-off-object-time bounce-time epsilon)) (#(-> %
-                                                                                                                         (bounce-off-object bounce-off-object-index-pairs)
-                                                                                                                         (damage % (distinct (flatten bounce-off-object-index-pairs))))))
-                   (cond-> (and bounce-off-wall-time   (matrix/equals bounce-off-wall-time   bounce-time epsilon)) (#(-> %
-                                                                                                                         (bounce-off-wall bounce-off-wall-indice)
-                                                                                                                         (damage % bounce-off-wall-indice))))
+                   (cond-> (and bounce-off-object-time (f= bounce-off-object-time bounce-time)) (#(-> %
+                                                                                                      (bounce-off-object bounce-off-object-index-pairs)
+                                                                                                      (damage % (distinct (flatten bounce-off-object-index-pairs))))))
+                   (cond-> (and bounce-off-wall-time   (f= bounce-off-wall-time   bounce-time)) (#(-> %
+                                                                                                      (bounce-off-wall bounce-off-wall-indice)
+                                                                                                      (damage % bounce-off-wall-indice))))
                    (force-inside-wall))
                (+ now-time bounce-time))
         (-> objects
