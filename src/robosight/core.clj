@@ -241,8 +241,10 @@
           (solve-quadratic-equation [a b c]
             (let [d (- (Math/pow b 2) (* 4 a c))]
               (if (>= d 0)
-                (matrix/div (matrix/add (- b) ((juxt + -) (Math/sqrt d)))
-                            (matrix/mul 2 a)))))
+                ;; 二次方程式の階の公式そのままより、以下のほうが浮動小数点の誤差が少ないらしい。。。
+                (if (>= b 0)
+                  [(/ (* -2 c) (+ b (Math/sqrt d))) (/ (- (- b) (Math/sqrt d)) (* 2 a))]
+                  [(/ (+ (- b) (Math/sqrt d)) (* 2 a)) (/ (* -2 c) (- b (Math/sqrt d)))]))))
           (bounce-off-object-time' [object other]
             (if (and object other)
               (let [v0 (matrix/sub (:center other) (:center object))
@@ -262,7 +264,7 @@
           (bounce-off-object-times [objects]
             (->> objects
                  (map-indexed vector)
-                 (#(combinatorics/combinations % 2))  ; オブジェクトの数が少ないから、ナイーブな実装でも大丈夫なはず。。。
+                 (#(combinatorics/combinations % 2))  ; オブジェクトの数が少ないから、ナイーブな実装で大丈夫なはず。。。
                  (keep (fn [index-and-object-pair]
                          (if-let [bounce-time (apply bounce-off-object-time (map second index-and-object-pair))]
                            [bounce-time (map first index-and-object-pair)])))
