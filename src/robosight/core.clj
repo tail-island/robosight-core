@@ -7,7 +7,7 @@
 ;; Comparing floating points utilities...
 
 (def ^:private epsilon
-  (Math/pow 10 -8))
+  (Math/pow 10 -6))
 
 (defn f=
   [x y]
@@ -233,9 +233,14 @@
             (let [d (- (Math/pow b 2) (* 4 a c))]
               (if (>= d 0)
                 ;; 二次方程式の階の公式そのままより、以下のほうが浮動小数点の誤差が少ないらしい。。。
-                (if (>= b 0)
-                  [(/ (* -2 c) (+ b (Math/sqrt d))) (/ (- (- b) (Math/sqrt d)) (* 2 a))]
-                  [(/ (* -2 c) (- b (Math/sqrt d))) (/ (+ (- b) (Math/sqrt d)) (* 2 a))]))))
+                (let [op (if (>= b 0)
+                           -
+                           +)
+                      x1 (/ (op (- b) (Math/sqrt d)) (* 2 a))
+                      x2 (if (= x1 0)
+                           x1
+                           (/ c a x1))]
+                  [x1 x2]))))
           (bounce-off-object-time' [object other]
             (if (and object other)
               (let [v0 (matrix/sub (:center other) (:center object))
@@ -352,8 +357,9 @@
                    (cond-> (and bounce-off-wall-time   (f= bounce-off-wall-time   bounce-time)) (#(-> %
                                                                                                       (bounce-off-wall bounce-off-wall-indice)
                                                                                                       (damage % bounce-off-wall-indice))))
+                   (linear-motion epsilon)  ; 浮動小数点の計算誤差で物体が食い込むことがあるので、少しだけ時間を進めておきます。
                    (force-inside-wall))
-               (+ now-time bounce-time))
+               (+ now-time bounce-time epsilon))  ; 食い込み防止で時間を進めたので、忘れずに足しておきます。
         (-> objects
             (linear-motion (- 1.0 now-time))
             (force-inside-wall))))))
