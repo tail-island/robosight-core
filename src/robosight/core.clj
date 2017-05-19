@@ -26,10 +26,10 @@
   (or (< x y) (f= x y)))
 
 (def f>
-  (complement f<))
+  (complement f<=))
 
 (def f>=
-  (complement f<=))
+  (complement f<))
 
 ;; Constants.
 
@@ -152,6 +152,7 @@
       (apply > survivor-counts) 0
       (apply < survivor-counts) 1
       :else                     (let [survivor-hp-totals (map #(reduce + (map :hp %)) survivors-coll)]
+                                  (print survivor-hp-totals)
                                   (cond
                                     (apply f> survivor-hp-totals) 0
                                     (apply f< survivor-hp-totals) 1)))))
