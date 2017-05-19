@@ -93,11 +93,11 @@
              {:type :tank :center [-160.0   20.0] :direction (* Math/PI 0.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "c"}
              {:type :tank :center [-160.0  -60.0] :direction (* Math/PI 0.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "d"}
              {:type :tank :center [-160.0 -140.0] :direction (* Math/PI 0.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "e"}
-             {:type :tank :center [ 160.0 -180.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "α"}
-             {:type :tank :center [ 160.0 -100.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "β"}
-             {:type :tank :center [ 160.0  -20.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "γ"}
-             {:type :tank :center [ 160.0   60.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "δ"}
-             {:type :tank :center [ 160.0  140.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "ε"}]})
+             {:type :tank :center [ 160.0 -180.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "v"}
+             {:type :tank :center [ 160.0 -100.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "w"}
+             {:type :tank :center [ 160.0  -20.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "x"}
+             {:type :tank :center [ 160.0   60.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "y"}
+             {:type :tank :center [ 160.0  140.0] :direction (* Math/PI 1.0) :velocity [0.0 0.0] :hp initial-hp :can-shoot-after 0 :name "z"}]})
 
 ;; Utilities.
 
