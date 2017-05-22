@@ -176,7 +176,11 @@
   (let [[center velocity direction radius can-shoot-after] ((juxt :center :velocity :direction radius :can-shoot-after) (get-in state [:objects object-index]))
         rotation      (rotation direction)
         shell-center  (matrix/add center (matrix/mmul [(+ radius shell-radius 0.1) 0.0] rotation))
-        enough-space? (every? #(f> (matrix/length (matrix/sub shell-center (:center %))) (+ tank-radius shell-radius)) (:objects state))]
+        enough-space? (and (every? identity (map (fn [field-size shell-center]
+                                                   (f< (+ shell-center shell-radius) (+ (/ field-size 2)))
+                                                   (f> (- shell-center shell-radius) (- (/ field-size 2))))
+                                                 field-size shell-center))
+                           (every? #(f> (matrix/length (matrix/sub shell-center (:center %))) (+ tank-radius shell-radius)) (:objects state)))]
     (cond-> state
       (and (<= can-shoot-after 0) enough-space?) (-> (assoc-in  [:objects object-index :can-shoot-after] shoot-interval)
                                                      (update-in [:objects] #(conj % {:type     :shell
