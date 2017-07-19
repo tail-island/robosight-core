@@ -146,20 +146,20 @@
   (f<= (:hp object) 0.0))
 
 (defn tanks-coll
-  "状態（:objectsに戦車10両と弾丸複数のデータが入っている）から、Leftチームの戦車群とRightチームの戦車群を取得します。"
+  "引数で指定された状態（:objectsに戦車10両と弾丸複数のデータが入っている）から、Leftチームの戦車群とRightチームの戦車群を取得します。"
   [state]
   (->> (:objects state)
        (partition 5)
        (take 2)))
 
 (defn game-finished?
-  "試合終了であればtrue、そうでなければfalseを返します。"
+  "引数で指定された状態を調査し、試合終了であればtrue、そうでなければfalseを返します。"
   [state]
   (or (> (:turn state) max-turn)
       (some #(every? broken? %) (tanks-coll state))))
 
 (defn winner
-  "勝利チームを返します。Leftチームが勝利なら0、Rightチームが勝利なら1、引き分けならnilになります。"
+  "引数で指定された状態を調査し、勝利チームを返します。Leftチームが勝利なら0、Rightチームが勝利なら1、引き分けならnilになります。"
   [state]
   (let [survivors-coll  (map #(remove broken? %) (tanks-coll state))
         survivor-counts (map count survivors-coll)]
@@ -174,23 +174,23 @@
 ;; Action.
 
 (defn- rotation
-  "2次元の回転行列を生成します。"
+  "引数で指定された向きに回転するための、2次元の回転行列を生成します。"
   [direction]
   [[(Math/cos direction) (Math/sin direction)] [(- (Math/sin direction)) (Math/cos direction)]])
 
 (defn- forward
-  "前進します。"
+  "前進します。引数で指定された状態中の、オブジェクト・インデックスで指定されたオブジェクトに、撃力を加えます。速度の変化に時間はかかりません。"
   [state object-index impact-speed]
   (update-in state [:objects object-index :velocity] #(matrix/add % (matrix/mmul [(max (min impact-speed tank-impact-speed-max) tank-impact-speed-min) 0.0]
                                                                                  (rotation (get-in state [:objects object-index :direction]))))))
 
 (defn- turn-to
-  "回転します。"
+  "回転します。引数で指定された状態中の、オブジェクト・インデックスで指定されたオブジェクトを、指定された向きに回転させます。回転に時間はかかりません。"
   [state object-index direction]
   (assoc-in state [:objects object-index :direction] direction))
 
 (defn- shoot
-  "砲撃します。"
+  "砲撃します。引数で指定された状態中の、オブジェクト・インデックスで指定されたオブジェクトの前方に、指定された撃力を加えられた砲弾を生成します。砲撃をすると反動があって当たり前なのですが、反動で砲撃を読めてしまうと簡単になってしまうので、あえて反動はいれていません。"
   [state object-index impact-speed]
   (let [[center velocity direction radius can-shoot-after] ((juxt :center :velocity :direction radius :can-shoot-after) (get-in state [:objects object-index]))
         rotation      (rotation direction)
@@ -208,7 +208,7 @@
                                                                                                                                  rotation))}))))))
 
 (defn- action-fn
-  "思考ルーチンの標準入力に状況を出力し、思考ルーチンの標準出力から戦車への指示を入力し、指示を実行します。"
+  "思考ルーチンの標準入力に状況を出力し、思考ルーチンの標準出力から戦車への指示を入力し、指示を実行する関数を返します。思考ルーチンとの通信には、引数で指定された標準入力の集合と標準出力の集合を使用します。"
   [ins outs]
   (fn [state]
     (->> (map (fn [team in out friends-and-enemies]
@@ -253,7 +253,7 @@
 ;; Uniform linear motion.
 
 (defn- uniform-linear-motion'
-  "等速直線運動します。衝突の瞬間まで等速直線運動し、衝突したオブジェクトを適切に反射させ、now-timeを進めて再帰呼出しします。"
+  "引数で指定されたオブジェクトを、等速直線運動させます。衝突の瞬間まで等速直線運動し、衝突したオブジェクトを適切に反射させ、now-timeを進めて再帰します。now-timeは0〜1の値になります。"
   [objects now-time]
   (letfn [(linear-motion [objects duration]  ; 等速直線運動します。
             (->> objects
@@ -263,7 +263,7 @@
                  (reduce #(apply assoc %1 %2) objects)))
           (solve-quadratic-equation [a b c]  ; 二次方程式を解きます。
             (let [d (- (Math/pow b 2) (* 4 a c))]
-              (if (>= d 0)
+              (if (>= d 0.0)
                 ;; 二次方程式の階の公式そのままより、以下のほうが浮動小数点の誤差が少ないらしい。。。
                 (let [op (if (>= b 0.0)
                            -
@@ -360,7 +360,7 @@
                                                                      (some #(f= (- (% (/ field-size 2)) center (% (radius object))) 0.0) [+ -]) (* (- coefficient-of-restitution))))
                                                                  field-size (:center object) (:velocity object))))])))
                  (reduce #(apply assoc %1 %2) objects)))
-          (damage [objects last-objects indice]  ; ダメージを計算します。同じタイミングで遠くで大事故が起きたときに影響を受けてしまいますけど、ごめんなさい、無視で。
+          (damage [objects last-objects indice]  ; ダメージを追加します。同じタイミングで遠くで大事故が起きたときに影響を受けてしまいますけど、ごめんなさい、無視で。
             (if-let [indice (seq (filter objects indice))]
               (let [damage (* (/ (- (reduce + (map kinetic-energy last-objects))
                                     (reduce + (map kinetic-energy objects)))
@@ -381,7 +381,7 @@
     ;; オブジェクト同士が衝突する時刻と、オブジェクトが壁に衝突する時刻を取得します。
     (let [[bounce-off-object-time bounce-off-object-index-pairs] (bounce-off-object-times objects)
           [bounce-off-wall-time   bounce-off-wall-indice]        (bounce-off-wall-times   objects)]
-      ;; 衝突して反射すると等速直線運動になりませんから、最初の衝突を取得して、反射させ、再帰呼出しします。衝突がなければ、次のターンまで等速直線運動させます。
+      ;; 衝突して反射すると等速直線運動になりませんから、最初の衝突を取得して、そこまで等速直線運動させて、反射させてダーメージを追加して、（他の衝突はすべて忘れて）再帰呼出しします。衝突がなければ、次のターンまで等速直線運動させます。
       (if-let [bounce-time (first (sort (keep identity [bounce-off-object-time bounce-off-wall-time])))]
         (recur (-> objects
                    (linear-motion bounce-time)
@@ -399,14 +399,14 @@
             (force-inside-wall))))))
 
 (defn- uniform-linear-motion
-  "ターンとターンの間の、等速直線運動を実行します。"
+  "引数で指定された状態に対して、ターンとターンの間の等速直線運動を実行します。"
   [state]
   (assoc state :objects (uniform-linear-motion' (:objects state) 0.0)))
 
 ;; Main loop.
 
 (defn- cooling-turret
-  "砲撃後、砲塔を冷やします。"
+  "引数で指定された状態に対して、砲塔の冷却を実施します。"
   [state]
   (->> (:objects state)
        (keep-indexed #(if (tank? %2)
@@ -414,7 +414,7 @@
        (reduce #(update-in %1 [:objects %2 :can-shoot-after] dec) state)))
 
 (defn- delete-vanished-objects
-  "衝突で消えたオブジェクトを状態から削除します。"
+  "引数で指定された状態から、衝突で消えたオブジェクトを削除します。"
   [state]
   (update state :objects #(->> % (keep identity) (vec))))
 
@@ -423,6 +423,6 @@
   (update state :turn inc))
 
 (defn tick-fn
-  "ターンを実行する関数を返します。アクションを実行し、等速直線運動し、砲塔を冷やし、衝突で消えたオブジェクトを削除し、ターンを増加させます。"
+  "ターンを実行する関数を返します。アクションを実行し、等速直線運動し、砲塔を冷やし、衝突で消えたオブジェクトを削除し、ターンを増加させます。思考ルーチンとの通信は、引数で指定された標準入力の集合と標準出力の集合を使用します。"
   [ins outs]
   (comp inc-turn delete-vanished-objects cooling-turret uniform-linear-motion (action-fn ins outs)))
