@@ -5,7 +5,7 @@
             (clojure.tools [logging       :as logging]))
   (:import  (java.util.concurrent TimeoutException TimeUnit)))
 
-;; Comparing floating points utilities...（https://tail-island.github.io/programming/2017/04/27/floating-point.html）
+;; Comparing floating points utilities... See <https://tail-island.github.io/programming/2017/04/27/floating-point.html>.
 
 (def ^:private epsilon
   (Math/pow 10 -6))
@@ -285,7 +285,7 @@
                        (filter #(f< 0.0 %))
                        (sort)
                        (first))))))
-          (bounce-off-object-time [object other]  ; 2つのオブジェクトがターン中に衝突する時刻を計算します（http://marupeke296.com/COL_3D_No9_GetSphereColliTimeAndPos.html）。
+          (bounce-off-object-time [object other]  ; 2つのオブジェクトがターン中に衝突する時刻を計算します。使用したアルゴリズムは<http://marupeke296.com/COL_3D_No9_GetSphereColliTimeAndPos.html>です。
             (some->> (bounce-off-object-time' object other)
                      (#(if (f<= (+ now-time %) 1.0)
                          %))))
@@ -301,7 +301,7 @@
                                                 (if (f= bounce-time first-bounce-time)
                                                   index-pair))
                                               %)]))))
-          (bounce-off-object' [impacts objects index-pair]  ; 衝突した2つのオブジェクトを反射させます（http://marupeke296.com/COL_Basic_No5_WallVector.html）。
+          (bounce-off-object' [impacts objects index-pair]  ; 衝突した2つのオブジェクトを反射させます。使用したアルゴリズムは<http://marupeke296.com/COL_Basic_No5_WallVector.html>です。
             (->> index-pair
                  ((juxt identity reverse))
                  (map (fn [indice]
@@ -350,7 +350,7 @@
                                                 (if (f= bounce-time first-bounce-time)
                                                   index))
                                               %)]))))
-          (bounce-off-wall [objects indice]  ; オブジェクトを壁から反射させます（http://marupeke296.com/COL_Basic_No5_WallVector.html）。
+          (bounce-off-wall [objects indice]  ; オブジェクトを壁から反射させます。使用したアルゴリズムは<http://marupeke296.com/COL_Basic_No5_WallVector.html>です。
             (->> indice
                  (keep (fn [index]
                          (if-let [object (objects index)]
